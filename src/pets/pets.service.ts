@@ -1,0 +1,172 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Pet } from './pets.entity';
+import { User } from '../user/user.entity';
+
+@Injectable()
+export class PetsService {
+  constructor(
+    @InjectRepository(Pet)
+    private petsRepository: Repository<Pet>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
+  ) {}
+
+  // Create a new pet
+  async create(petData: Partial<Pet>, ownerId: string): Promise<Pet> {
+    // Check if pet name is provided
+    if (!petData.name) {
+      throw new BadRequestException('Pet name is required');
+    }
+    
+    // Check if owner exists
+    const owner = await this.usersRepository.findOne({ where: { id: ownerId } });
+    if (!owner) {
+      throw new NotFoundException(`User with ID ${ownerId} not found`);
+    }
+
+    const newPet = this.petsRepository.create({
+      ...petData,
+      owner
+    });
+    
+    return await this.petsRepository.save(newPet);
+  }
+
+  // Create a new pet by owner username
+  async createByOwnerUsername(petData: Partial<Pet>, ownerUsername: string): Promise<Pet[]> {
+    // Check if pet name is provided
+    if (!petData.name) {
+      throw new BadRequestException('Pet name is required');
+    }
+    
+    // Check if username is provided
+    if (!ownerUsername) {
+      throw new BadRequestException('Owner username is required');
+    }
+
+    // Check if owner exists
+    const owner = await this.usersRepository.findOne({ where: { username: ownerUsername } });
+    if (!owner) {
+      throw new NotFoundException(`User with username ${ownerUsername} not found`);
+    }
+
+    // Remove ownerId property if it exists to avoid confusion
+    const { ownerId, ...cleanPetData } = petData as any;
+
+    const newPet = this.petsRepository.create({
+      ...cleanPetData,
+      owner
+    });
+    
+    return await this.petsRepository.save(newPet);
+  }
+
+  // Get all pets
+  async findAll(): Promise<Pet[]> {
+    return this.petsRepository.find({
+      relations: ['owner']
+    });
+  }
+
+  // Get pets by owner
+  async findByOwner(ownerId: string): Promise<Pet[]> {
+    return this.petsRepository.find({
+      where: { owner: { id: ownerId } },
+      relations: ['owner']
+    });
+  }
+
+  // Get pets by owner username
+  async findByOwnerUsername(ownerUsername: string): Promise<Pet[]> {
+    const owner = await this.usersRepository.findOne({ 
+      where: { username: ownerUsername } 
+    });
+    
+    if (!owner) {
+      throw new NotFoundException(`User with username ${ownerUsername} not found`);
+    }
+    
+    return this.petsRepository.find({
+      where: { owner: { id: owner.id } },
+      relations: ['owner']
+    });
+  }
+
+  // Get pet by id
+  async findOne(id: string): Promise<Pet> {
+    const pet = await this.petsRepository.findOne({ 
+      where: { id },
+      relations: ['owner']
+    });
+
+    if (!pet) {
+      throw new NotFoundException(`Pet with ID ${id} not found`);
+    }
+    
+    return pet;
+  }
+
+  // Update a pet
+  async update(id: string, updateData: Partial<Pet>): Promise<Pet> {
+    // Check if pet exists
+    await this.findOne(id);
+    
+    await this.petsRepository.update(id, updateData);
+    
+    // Return updated pet
+    return this.findOne(id);
+  }
+
+  // Delete a pet
+  async remove(id: string, userId: string): Promise<void> {
+    const pet = await this.findOne(id);
+    
+    // Check if user is the owner
+    if (pet.owner.id !== userId) {
+      throw new BadRequestException('You can only delete your own pets');
+    }
+    
+    const result = await this.petsRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Pet with ID ${id} not found`);
+    }
+  }
+
+  // Delete a pet with username authorization
+  async removeByUsername(id: string, ownerUsername: string): Promise<void> {
+    const pet = await this.findOne(id);
+    const owner = await this.usersRepository.findOne({ where: { username: ownerUsername } });
+    
+    if (!owner) {
+      throw new NotFoundException(`User with username ${ownerUsername} not found`);
+    }
+    
+    // Check if user is the owner
+    if (pet.owner.id !== owner.id) {
+      throw new BadRequestException('You can only delete your own pets');
+    }
+    
+    const result = await this.petsRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Pet with ID ${id} not found`);
+    }
+  }
+
+  // Find pets available for matching
+  async findAvailableForMatch(): Promise<Pet[]> {
+    return this.petsRepository.find({
+      where: { isAvailableForMatch: true },
+      relations: ['owner']
+    });
+  }
+
+  // Find pets available for boarding
+  async findAvailableForBoarding(): Promise<Pet[]> {
+    return this.petsRepository.find({
+      where: { isAvailableForBoarding: true },
+      relations: ['owner']
+    });
+  }
+}

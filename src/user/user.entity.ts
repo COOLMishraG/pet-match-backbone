@@ -4,16 +4,22 @@ export enum UserRole {
   OWNER = 'OWNER',
   SITTER = 'SITTER',
   VET = 'VET',
+  SHELTER = 'SHELTER',
   ADMIN = 'ADMIN',
 }
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
+export class User {  @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column() // Add this field to match your database schema
   name: string;
+
+  @Column({ unique: true })
+  username: string;
+
+  @Column({ nullable: true })
+  displayName: string;
 
   @Column({ unique: true })
   email: string;
