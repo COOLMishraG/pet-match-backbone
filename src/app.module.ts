@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
+import { PetsModule } from './pets/pets.module';
+import { MatchModule } from './match/match.module';
 
 @Module({
   imports: [
@@ -13,15 +15,17 @@ import { UserModule } from './user/user.module';
       type: 'postgres',
       url: process.env.DATABASE_URL,
       ssl: {
-        rejectUnauthorized: false, // Important for Neon SSL
+        rejectUnauthorized: false,
       },
-      synchronize: true, // Only for dev
+      synchronize: false, // Set to false when using migrations
       autoLoadEntities: true,
-        logging: true,
-  logger: 'advanced-console'
+      migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+      migrationsRun: true, // Run migrations automatically on startup
     }),
     AuthModule,
     UserModule,
+    PetsModule,
+    MatchModule,
   ],
 })
 export class AppModule {}

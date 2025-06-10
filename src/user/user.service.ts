@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -10,13 +10,37 @@ export class UserService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
   ) {}
-
   // Create a new user
   async create(userData: Partial<User>): Promise<User> {
-    
-    const existingUser = await this.usersRepository.findOne({ where: { email: userData.email } });
-    if (existingUser) {
+    // Check if email is already in use
+    const existingEmail = await this.usersRepository.findOne({ where: { email: userData.email } });
+    if (existingEmail) {
       throw new ConflictException('User with this email already exists');
+    }
+    
+    // Check if username is already in use
+    if (userData.username) {
+      const existingUsername = await this.usersRepository.findOne({ where: { username: userData.username } });
+      if (existingUsername) {
+        throw new ConflictException('Username is already taken. Please choose another username.');
+      }
+    }
+
+    // In your create method, make sure the name field is set
+    // If name is not provided, set it from displayName or username
+    if (!userData.name) {
+      // Try to use displayName first, then username, then email
+      userData.name = userData.displayName || userData.username || (userData.email ? userData.email.split('@')[0] : 'User_' + Date.now());
+    }
+    
+    // If username is not provided but displayName is, generate a username
+    if (!userData.username && userData.displayName) {
+      userData.username = this.generateUsernameFromDisplayName(userData.displayName);
+    }
+    
+    // If displayName is not provided but username is, use username as displayName
+    if (!userData.displayName && userData.username) {
+      userData.displayName = userData.username;
     }
 
     // Hash password if provided
@@ -28,7 +52,13 @@ export class UserService {
     return this.usersRepository.save(newUser);
   }
 
-  // Get all users
+  // Helper method to generate a username from display name
+  private generateUsernameFromDisplayName(displayName: string): string {
+    // Replace spaces with underscores and make lowercase
+    return displayName.replace(/\s+/g, '_').toLowerCase();
+  }
+
+  // Get all userssdfkfjsbnfsdnvikbndsikbvuisdghfisdbiuyfcgas78gd8isdhvuidbionvcaOhd87wtdf78asegfikcnsl;cnjsikavcyhxvciasjdp;wjdiuAGYUdvZSncioasjfiopsahuiafdcxusvcjzspckaop;sdjiasgfuisadbcikzsjp;xcjasidguasdgcujsdnjcpolSjcioasgfujasdvbcjkhzb
   async findAll(): Promise<User[]> {
     return this.usersRepository.find();
   }
@@ -41,10 +71,23 @@ export class UserService {
     }
     return user;
   }
-
   // Get user by email
   async findByEmail(email: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { email } });
+  }
+  
+  // Get user by username
+  async findByUsername(username: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { username } });
+  }
+
+  // Get user by username with proper error handling
+  async findOneByUsername(username: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { username } });
+    if (!user) {
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+    return user;
   }
 
   // Update a user
@@ -70,5 +113,22 @@ export class UserService {
     if (result.affected === 0) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+  }
+
+  // Validate user credentials
+  async validateUser(email: string, password: string): Promise<User> {
+    const user = await this.findByEmail(email);
+    
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    
+    return user;
   }
 }
