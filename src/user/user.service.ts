@@ -48,7 +48,23 @@ export class UserService {
       userData.password = await bcrypt.hash(userData.password, 10);
     }
 
+    // Double-check name is set (fail-safe)
+    if (!userData.name || userData.name.trim() === '') {
+      userData.name = userData.displayName || userData.username || 
+        (userData.email ? userData.email.split('@')[0] : 'User_' + Date.now());
+        
+      console.log('Name was missing, set to:', userData.name);
+    }
+
     const newUser = this.usersRepository.create(userData);
+    
+    // One more safety check before saving
+    if (!newUser.name) {
+      newUser.name = newUser.displayName || newUser.username || 
+        (newUser.email ? newUser.email.split('@')[0] : 'User_' + Date.now());
+      console.log('Final name check - set to:', newUser.name);
+    }
+    
     return this.usersRepository.save(newUser);
   }
 
