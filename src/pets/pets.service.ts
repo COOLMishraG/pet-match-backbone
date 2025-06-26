@@ -32,10 +32,8 @@ export class PetsService {
     });
     
     return await this.petsRepository.save(newPet);
-  }
-
-  // Create a new pet by owner username
-  async createByOwnerUsername(petData: Partial<Pet>, ownerUsername: string): Promise<Pet[]> {
+  }  // Create a new pet by owner username
+  async createByOwnerUsername(petData: Partial<Pet>, ownerUsername: string): Promise<Pet> {
     // Check if pet name is provided
     if (!petData.name) {
       throw new BadRequestException('Pet name is required');
@@ -50,17 +48,17 @@ export class PetsService {
     const owner = await this.usersRepository.findOne({ where: { username: ownerUsername } });
     if (!owner) {
       throw new NotFoundException(`User with username ${ownerUsername} not found`);
-    }
-
-    // Remove ownerId property if it exists to avoid confusion
+    }    // Remove ownerId property if it exists to avoid confusion
     const { ownerId, ...cleanPetData } = petData as any;
-
+    
     const newPet = this.petsRepository.create({
       ...cleanPetData,
       owner
     });
     
-    return await this.petsRepository.save(newPet);
+    // Save the pet entity and handle array or single object
+    const savedPet = await this.petsRepository.save(newPet);
+    return Array.isArray(savedPet) ? savedPet[0] : savedPet;
   }
 
   // Get all pets

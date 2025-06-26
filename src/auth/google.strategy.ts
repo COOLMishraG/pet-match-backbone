@@ -17,6 +17,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   async validate(accessToken: string, refreshToken: string, profile: any, done: VerifyCallback): Promise<any> {
     const { name, emails, photos, id } = profile;
     
+    console.log('🔍 Google Strategy: Processing OAuth profile');
+    console.log('📧 Email:', emails[0].value);
+    console.log('👤 Name:', name.givenName + ' ' + name.familyName);
+    
     // Format the profile data
     const googleProfile = {
       id: id,
@@ -28,7 +32,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
     try {
       // Use the auth service to validate/create the user
+      console.log('🔄 Calling AuthService to validate/create OAuth user...');
       const { user, token } = await this.authService.validateOAuthUser(googleProfile);
+      
+      console.log('✅ Google Strategy: User processed successfully');
+      console.log('🎫 Google Strategy: Generated token:', token);
+      console.log('👤 Google Strategy: User data:', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        email: user.email
+      }, null, 2));
       
       // Return both user data and token
       const result = {
@@ -41,7 +54,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         token
       };
       
-      done(null, result);    } catch (error) {
+      console.log('📤 Google Strategy: Returning result to controller');
+      done(null, result);
+    } catch (error) {
+      console.error('❌ Google Strategy: Error during OAuth processing:', error);
       done(error, false);
     }
   }

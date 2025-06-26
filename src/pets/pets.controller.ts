@@ -23,13 +23,10 @@ export class PetsController {
   @HttpCode(HttpStatus.CREATED)
   create(@Body() createPetDto: Partial<Pet>, @Body('ownerId') ownerId: string) {
     return this.petsService.create(createPetDto, ownerId);
- }
-
-  // Create a pet using owner username
-  ////heres a catch that when be promis pet then it throughs an error
+ }  // Create a pet using owner username
   @Post('by-username')
   @HttpCode(HttpStatus.CREATED)
-  createByUsername(@Body() createPetDto: Partial<Pet>, @Body('ownerUsername') ownerUsername: string): Promise <Pet[]> {
+  createByUsername(@Body() createPetDto: Partial<Pet>, @Body('ownerUsername') ownerUsername: string): Promise<Pet> {
     return this.petsService.createByOwnerUsername(createPetDto, ownerUsername);
   }
 

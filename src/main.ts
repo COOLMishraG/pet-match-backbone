@@ -11,8 +11,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true, // Allow cookies to be sent with requests
   });
-  
-  await app.listen(process.env.PORT ?? 3000);
+    await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
 //hello world

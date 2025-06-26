@@ -17,10 +17,12 @@ import { MatchModule } from './match/match.module';
       ssl: {
         rejectUnauthorized: false,
       },
-      synchronize: false, // Set to false when using migrations
+      synchronize: false, // Set back to false for production safety
       autoLoadEntities: true,
       migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
       migrationsRun: true, // Run migrations automatically on startup
+      logging: ['error', 'warn', 'info', 'log'], // Enable detailed logging
+      logger: 'advanced-console', // Use advanced console logger
     }),
     AuthModule,
     UserModule,

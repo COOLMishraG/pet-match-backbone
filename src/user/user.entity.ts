@@ -15,7 +15,7 @@ export class User {  @PrimaryGeneratedColumn('uuid')
   @Column() // Add this field to match your database schema
   name: string;
 
-  @Column({ unique: true })
+  @Column({ unique: true }) // Back to required after fixing null values
   username: string;
 
   @Column({ nullable: true })
@@ -24,7 +24,7 @@ export class User {  @PrimaryGeneratedColumn('uuid')
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true }) // Make password nullable for OAuth users
   password: string;
 
   @Column({ nullable: true })
