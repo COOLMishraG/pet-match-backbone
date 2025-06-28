@@ -32,8 +32,8 @@ export class Pet {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @Column('text', { array: true, nullable: true })
-  image: string[];
+  @Column({ type: 'text', nullable: true })
+  imageUrl: string;
 
   @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
   owner: User;
