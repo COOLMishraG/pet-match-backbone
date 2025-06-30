@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Pet } from './pets.entity';
+import { Pet, AnimalType } from './pets.entity';
 import { User } from '../user/user.entity';
+import { VisionAiService } from '../vision-ai/vision-ai.service';
 
 @Injectable()
 export class PetsService {
@@ -11,6 +12,7 @@ export class PetsService {
     private petsRepository: Repository<Pet>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private visionAiService: VisionAiService,
   ) {}
 
   // Create a new pet
@@ -18,6 +20,11 @@ export class PetsService {
     // Check if pet name is provided
     if (!petData.name) {
       throw new BadRequestException('Pet name is required');
+    }
+    
+    // Check if animal type is provided
+    if (!petData.animal) {
+      throw new BadRequestException('Animal type is required');
     }
     
     // Check if owner exists
@@ -37,6 +44,11 @@ export class PetsService {
     // Check if pet name is provided
     if (!petData.name) {
       throw new BadRequestException('Pet name is required');
+    }
+    
+    // Check if animal type is provided
+    if (!petData.animal) {
+      throw new BadRequestException('Animal type is required');
     }
     
     // Check if username is provided
@@ -166,5 +178,118 @@ export class PetsService {
       where: { isAvailableForBoarding: true },
       relations: ['owner']
     });
+  }
+
+  /**
+   * Analyze image to detect animal type and breed
+   */
+  async analyzeImageForAnimal(imageBuffer: Buffer): Promise<{
+    suggestedAnimal: AnimalType;
+    confidence: number;
+    suggestedBreed?: string;
+    allLabels: string[];
+  }> {
+    const analysis = await this.visionAiService.analyzeImage(imageBuffer);
+    
+    return {
+      suggestedAnimal: analysis.detectedAnimal || AnimalType.OTHER,
+      confidence: analysis.confidence,
+      suggestedBreed: analysis.breed,
+      allLabels: analysis.allLabels
+    };
+  }
+
+  /**
+   * Analyze image from URL to detect animal type and breed
+   */
+  async analyzeImageUrlForAnimal(imageUrl: string): Promise<{
+    suggestedAnimal: AnimalType;
+    confidence: number;
+    suggestedBreed?: string;
+    allLabels: string[];
+  }> {
+    const analysis = await this.visionAiService.analyzeImageFromUrl(imageUrl);
+    
+    return {
+      suggestedAnimal: analysis.detectedAnimal || AnimalType.OTHER,
+      confidence: analysis.confidence,
+      suggestedBreed: analysis.breed,
+      allLabels: analysis.allLabels
+    };
+  }
+
+  /**
+   * Create a pet with automatic animal detection from image
+   */
+  async createWithImageAnalysis(
+    petData: Partial<Pet>, 
+    ownerId: string, 
+    imageBuffer?: Buffer,
+    imageUrl?: string
+  ): Promise<Pet & { aiAnalysis?: any }> {
+    // Check if pet name is provided
+    if (!petData.name) {
+      throw new BadRequestException('Pet name is required');
+    }
+    
+    let aiAnalysis: {
+      suggestedAnimal: AnimalType;
+      confidence: number;
+      suggestedBreed?: string;
+      allLabels: string[];
+    } | null = null;
+    let finalPetData = { ...petData };
+
+    // If no animal type provided, try to detect from image
+    if (!petData.animal && (imageBuffer || imageUrl)) {
+      try {
+        if (imageBuffer) {
+          aiAnalysis = await this.analyzeImageForAnimal(imageBuffer);
+        } else if (imageUrl) {
+          aiAnalysis = await this.analyzeImageUrlForAnimal(imageUrl);
+        }
+
+        // Auto-set animal type if confidence is high enough
+        if (aiAnalysis && aiAnalysis.confidence > 0.7) {
+          finalPetData.animal = aiAnalysis.suggestedAnimal;
+          
+          // Auto-set breed if detected and not provided
+          if (!finalPetData.breed && aiAnalysis.suggestedBreed) {
+            finalPetData.breed = aiAnalysis.suggestedBreed;
+          }
+        }
+      } catch (error) {
+        console.warn('Image analysis failed, proceeding without AI detection:', error);
+      }
+    }
+    
+    // Check if animal type is provided (either manually or from AI)
+    if (!finalPetData.animal) {
+      throw new BadRequestException('Animal type is required. Provide manually or upload a clear pet image for auto-detection.');
+    }
+    
+    // Check if owner exists
+    const owner = await this.usersRepository.findOne({ where: { id: ownerId } });
+    if (!owner) {
+      throw new NotFoundException(`User with ID ${ownerId} not found`);
+    }
+
+    const newPet = this.petsRepository.create({
+      ...finalPetData,
+      owner
+    });
+    
+    const savedPet = await this.petsRepository.save(newPet);
+
+    // Return pet with AI analysis info
+    return {
+      ...savedPet,
+      aiAnalysis: aiAnalysis ? {
+        detectedAnimal: aiAnalysis.suggestedAnimal,
+        confidence: aiAnalysis.confidence,
+        suggestedBreed: aiAnalysis.suggestedBreed,
+        wasAutoDetected: !petData.animal
+      } : undefined
+    };
   }
 }

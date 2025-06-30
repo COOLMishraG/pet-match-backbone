@@ -5,6 +5,7 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { PetsModule } from './pets/pets.module';
 import { MatchModule } from './match/match.module';
+import { VisionAiModule } from './vision-ai/vision-ai.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MatchModule } from './match/match.module';
     UserModule,
     PetsModule,
     MatchModule,
+    VisionAiModule,
   ],
 })
 export class AppModule {}
