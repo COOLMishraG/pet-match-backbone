@@ -6,6 +6,17 @@ export enum PetGender {
   FEMALE = 'FEMALE',
 }
 
+export enum AnimalType {
+  DOG = 'DOG',
+  CAT = 'CAT',
+  BIRD = 'BIRD',
+  RABBIT = 'RABBIT',
+  HAMSTER = 'HAMSTER',
+  FISH = 'FISH',
+  REPTILE = 'REPTILE',
+  OTHER = 'OTHER',
+}
+
 @Entity('pets')
 export class Pet {
   @PrimaryGeneratedColumn('uuid')
@@ -13,6 +24,12 @@ export class Pet {
 
   @Column()
   name: string;
+
+  @Column({
+    type: 'enum',
+    enum: AnimalType,
+  })
+  animal: AnimalType;
 
   @Column()
   breed: string;

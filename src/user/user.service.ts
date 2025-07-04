@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from './user.entity';
+import { User, UserRole } from './user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -172,7 +172,10 @@ export class UserService {
     }
     return user;
   }
-
+  // Get all vets
+  async findAllVets(): Promise<User[]> {
+    return this.usersRepository.find({ where: { role: UserRole.VET } });
+  }
   // Update a user
   async update(id: string, updateData: Partial<User>): Promise<User> {
     // Check if user exists

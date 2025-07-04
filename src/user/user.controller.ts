@@ -150,6 +150,12 @@ export class UserController {
     }
   }
 
+  //Retrieving all the vets
+  @Get('vets')
+  findAllVets(): Promise<User[]> {
+    return this.userService.findAllVets();
+  }
+
   //checked
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -160,6 +166,27 @@ export class UserController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateUserDto: Partial<User>) {
     return this.userService.update(id, updateUserDto);
+  }
+
+  // Update user by username
+  @Patch('username/:username')
+  async updateByUsername(@Param('username') username: string, @Body() updateUserDto: Partial<User>) {
+    try {
+      console.log('🔄 Updating user by username:', username);
+      console.log('📝 Update data:', JSON.stringify(updateUserDto, null, 2));
+      
+      // First find the user by username to get their ID
+      const user = await this.userService.findOneByUsername(username);
+      
+      // Then update using the ID
+      const updatedUser = await this.userService.update(user.id, updateUserDto);
+      
+      console.log('✅ User updated successfully by username:', updatedUser.email);
+      return updatedUser;
+    } catch (error) {
+      console.error('❌ Error updating user by username:', error.message);
+      throw error;
+    }
   }
   //checked
   @Delete(':id')
