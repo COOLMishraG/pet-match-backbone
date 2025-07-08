@@ -28,22 +28,18 @@ export class MatchController {
     return this.matchService.findAvailablePets(userId, petId);
   }
 
-  // Send a match request
+  // Send a match request (frontend only sends pet IDs)
   @Post('request')
   @HttpCode(HttpStatus.CREATED)
   async createMatchRequest(
     @Body() requestData: { 
-      requesterId: string,
       requesterPetId: string, 
-      recipientId: string, 
       recipientPetId: string,
       message?: string 
     }
   ): Promise<Match> {
-    return this.matchService.createMatchRequest(
-      requestData.requesterId,
+    return this.matchService.createMatchRequestByPetIds(
       requestData.requesterPetId,
-      requestData.recipientId,
       requestData.recipientPetId,
       requestData.message
     );
@@ -171,7 +167,6 @@ export class MatchController {
   ): Promise<Match> {
     return this.matchService.respondToMatchRequestByUsername(
       matchId,
-      responseData.username,
       responseData.approve
     );
   }

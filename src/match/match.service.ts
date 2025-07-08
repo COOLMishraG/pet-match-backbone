@@ -244,6 +244,97 @@ export class MatchService {
     return this.matchRepository.save(matchRequest);
   }
 
+  // Send a match request using only pet IDs (finds owners automatically)
+  async createMatchRequestByPetIds(
+    requesterPetId: string, 
+    recipientPetId: string,
+    message?: string
+  ): Promise<Match> {
+    // Find both pets with their owners
+    const [requesterPet, recipientPet] = await Promise.all([
+      this.petRepository.findOne({ 
+        where: { id: requesterPetId },
+        relations: ['owner']
+      }),
+      this.petRepository.findOne({ 
+        where: { id: recipientPetId, isAvailableForMatch: true },
+        relations: ['owner']
+      })
+    ]);
+
+    if (!requesterPet) {
+      throw new NotFoundException(`Requester pet with ID ${requesterPetId} not found`);
+    }
+
+    if (!recipientPet) {
+      throw new NotFoundException(`Recipient pet with ID ${recipientPetId} not found or not available for matching`);
+    }
+
+    // Extract user IDs from the pets
+    const requesterId = requesterPet.owner.id;
+    const recipientId = recipientPet.owner.id;
+
+    // Check if user is trying to match with their own pet
+    if (requesterId === recipientId) {
+      throw new BadRequestException('Cannot create match request with your own pet');
+    }
+
+    // Check if pets are compatible (different genders, same animal type)
+    if (requesterPet.gender === recipientPet.gender) {
+      throw new BadRequestException('Pets must be of opposite genders for breeding');
+    }
+
+    if (requesterPet.animal !== recipientPet.animal) {
+      throw new BadRequestException('Pets must be of the same animal type for matching');
+    }
+
+    // Check if the match request already exists
+    const existingRequest = await this.matchRepository.findOne({
+      where: [
+        { 
+          requesterPet: { id: requesterPetId }, 
+          recipientPet: { id: recipientPetId },
+          status: MatchStatus.PENDING 
+        },
+        { 
+          requesterPet: { id: recipientPetId }, 
+          recipientPet: { id: requesterPetId },
+          status: MatchStatus.PENDING 
+        }
+      ]
+    });
+
+    if (existingRequest) {
+      throw new ConflictException('A match request between these pets already exists');
+    }
+
+    // Create the match request
+    const matchRequest = this.matchRepository.create({
+      requester: requesterPet.owner,
+      recipient: recipientPet.owner,
+      requesterPet,
+      recipientPet,
+      status: MatchStatus.PENDING,
+      message: message || `${requesterPet.name} would like to meet ${recipientPet.name}!`,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    const savedMatch = await this.matchRepository.save(matchRequest);
+
+    // Return the match with full relations
+    const fullMatch = await this.matchRepository.findOne({
+      where: { id: savedMatch.id },
+      relations: ['requester', 'recipient', 'requesterPet', 'recipientPet', 'requesterPet.owner', 'recipientPet.owner']
+    });
+
+    if (!fullMatch) {
+      throw new NotFoundException('Failed to retrieve the created match');
+    }
+
+    return fullMatch;
+  }
+
   // Get match requests sent by a user
   async getSentRequests(userId: string): Promise<Match[]> {
     return this.matchRepository.find({
@@ -343,15 +434,15 @@ export class MatchService {
   }
 
   // Respond to a match request by username
-  async respondToMatchRequestByUsername(matchId: string, username: string, approve: boolean): Promise<Match> {
+  async respondToMatchRequestByUsername(matchId: string, approve: boolean): Promise<Match> {
     // Find the match request
     const match = await this.matchRepository.findOne({
-      where: { id: matchId, recipient: { username } },
+      where: { id: matchId },
       relations: ['requester', 'recipient', 'requesterPet', 'recipientPet'],
     });
 
     if (!match) {
-      throw new NotFoundException(`Match request with ID ${matchId} not found or you're not authorized to respond`);
+      throw new NotFoundException(`Match request with ID ${matchId} not found`);
     }
 
     if (match.status !== MatchStatus.PENDING) {
@@ -360,7 +451,7 @@ export class MatchService {
 
     // Update the status based on the response
     match.status = approve ? MatchStatus.APPROVED : MatchStatus.REJECTED;
-    
+    //match.status = MatchStatus.PENDING;
     return this.matchRepository.save(match);
   }
 
