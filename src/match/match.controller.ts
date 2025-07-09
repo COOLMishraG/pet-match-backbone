@@ -22,10 +22,10 @@ export class MatchController {
   // Get all pets available for breeding
   @Get('available-pets')
   async findAvailablePets(
-    @Query('userId') userId: string,
+    @Query('username') username: string,
     @Query('petId') petId?: string
   ): Promise<Pet[]> {
-    return this.matchService.findAvailablePets(userId, petId);
+    return this.matchService.findAvailablePetsByUsername(username, petId);
   }
 
   // Send a match request (frontend only sends pet IDs)
@@ -46,42 +46,33 @@ export class MatchController {
   }
 
   // Get match requests sent by a user
-  @Get('sent/:userId')
+  @Get('sent/:username')
   async getSentRequests(
-    @Param('userId') userId: string
+    @Param('username') username: string
   ): Promise<Match[]> {
-    return this.matchService.getSentRequests(userId);
+    return this.matchService.getSentRequestsByUsername(username);
   }
 
   // Get match requests received by a user
-  @Get('received/:userId')
+  @Get('received/:username')
   async getReceivedRequests(
-    @Param('userId') userId: string,
+    @Param('username') username: string,
     @Query('status') status?: string
   ): Promise<Match[]> {
     if (status === 'pending') {
-      return this.matchService.getPendingReceivedRequests(userId);
+      return this.matchService.getPendingReceivedRequestsByUsername(username);
     }
-    return this.matchService.getReceivedRequests(userId);
-  }
-
-  // Get approved matches for a user
-  @Get('approved/:userId')
-  async getApprovedMatches(
-    @Param('userId') userId: string
-  ): Promise<Match[]> {
-    return this.matchService.getApprovedMatches(userId);
+    return this.matchService.getReceivedRequestsByUsername(username);
   }
 
   // Respond to a match request
   @Post(':matchId/respond')
   async respondToMatchRequest(
     @Param('matchId') matchId: string,
-    @Body() responseData: { userId: string, approve: boolean }
+    @Body() responseData: { username: string, approve: boolean }
   ): Promise<Match> {
-    return this.matchService.respondToMatchRequest(
+    return this.matchService.respondToMatchRequestByUsername(
       matchId,
-      responseData.userId,
       responseData.approve
     );
   }
@@ -90,15 +81,15 @@ export class MatchController {
   @Get(':matchId')
   async getMatchById(
     @Param('matchId') matchId: string,
-    @Query('userId') userId: string
+    @Query('username') username: string
   ): Promise<Match> {
-    if (!userId) {
-      throw new BadRequestException('userId query parameter is required');
+    if (!username) {
+      throw new BadRequestException('username query parameter is required');
     }
-    return this.matchService.getMatchById(matchId, userId);
+    return this.matchService.getMatchByIdAndUsername(matchId, username);
   }
 
-  // Get all pets available for breeding by username
+  // Get all pets available for breeding by username (alternative endpoint)
   @Get('available-pets/by-username')
   async findAvailablePetsByUsername(
     @Query('username') username: string,
