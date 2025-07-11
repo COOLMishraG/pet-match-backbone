@@ -49,6 +49,9 @@ export class User {  @PrimaryGeneratedColumn('uuid')
   @Column({ nullable: true })
   googleId: string;
 
+  @Column('text', { array: true, nullable: true, default: '{}' })
+  notifications: string[];
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -6,6 +6,8 @@ import { UserModule } from './user/user.module';
 import { PetsModule } from './pets/pets.module';
 import { MatchModule } from './match/match.module';
 import { VisionAiModule } from './vision-ai/vision-ai.module';
+import { VetSpecModule } from './vet-spec/vet-spec.module';
+import { SitterSpecModule } from './sitter-spec/sitter-spec.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { VisionAiModule } from './vision-ai/vision-ai.module';
     PetsModule,
     MatchModule,
     VisionAiModule,
+    VetSpecModule,
+    SitterSpecModule,
   ],
 })
 export class AppModule {}

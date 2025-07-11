@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException, UnauthorizedException
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from './user.entity';
+import { SitterSpecService } from '../sitter-spec/sitter-spec.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    private sitterSpecService: SitterSpecService,
   ) {}  // Create a new user
   async create(userData: Partial<User>): Promise<User> {
     try {
@@ -114,8 +116,23 @@ export class UserService {
       console.log('📋 Saved user details:', {
         id: savedUser.id,
         email: savedUser.email,
-        username: savedUser.username
+        username: savedUser.username,
+        role: savedUser.role
       });
+
+      // Create sitter spec if user role is SITTER
+      if (savedUser.role === UserRole.SITTER) {
+        try {
+          console.log('🐕 Creating sitter spec for new sitter user:', savedUser.username);
+          await this.sitterSpecService.createSitterSpec(savedUser.username);
+          console.log('✅ Sitter spec created successfully');
+        } catch (sitterError) {
+          console.error('❌ Error creating sitter spec:', sitterError);
+          // Don't fail user creation if sitter spec fails
+          // You might want to handle this differently based on your needs
+        }
+      }
+      
       console.log('🔄 Returning saved user from UserService');
       
       return savedUser;
@@ -172,25 +189,58 @@ export class UserService {
     }
     return user;
   }
+
+  async findAllSitters(): Promise<User[]> {
+    return this.usersRepository.find({ where: { role: UserRole.SITTER } });
+  }
   // Get all vets
   async findAllVets(): Promise<User[]> {
     return this.usersRepository.find({ where: { role: UserRole.VET } });
   }
   // Update a user
   async update(id: string, updateData: Partial<User>): Promise<User> {
-    // Check if user exists
-    await this.findOne(id);
+    // Check if user exists and get current user data
+    const currentUser = await this.findOne(id);
 
     // If updating password, hash it
     if (updateData.password) {
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
+    // Check if role is being changed to SITTER
+    const isBecomingSitter = updateData.role === UserRole.SITTER && currentUser.role !== UserRole.SITTER;
+    
+    // Check if role is being changed from SITTER to something else
+    const isLeavingSitter = currentUser.role === UserRole.SITTER && updateData.role && updateData.role !== UserRole.SITTER;
+
     // Update the user
     await this.usersRepository.update(id, updateData);
     
-    // Return updated user
-    return this.findOne(id);
+    // Get updated user
+    const updatedUser = await this.findOne(id);
+
+    // Handle sitter spec creation/deletion based on role changes
+    if (isBecomingSitter) {
+      try {
+        console.log('🐕 User converting to sitter, creating sitter spec for:', updatedUser.username);
+        await this.sitterSpecService.createSitterSpec(updatedUser.username);
+        console.log('✅ Sitter spec created for role conversion');
+      } catch (sitterError) {
+        console.error('❌ Error creating sitter spec during role conversion:', sitterError);
+        // Continue execution, don't fail the user update
+      }
+    } else if (isLeavingSitter) {
+      try {
+        console.log('🚫 User leaving sitter role, removing sitter spec for:', updatedUser.username);
+        await this.sitterSpecService.deleteSitterSpec(updatedUser.username);
+        console.log('✅ Sitter spec removed for role change');
+      } catch (sitterError) {
+        console.error('❌ Error removing sitter spec during role change:', sitterError);
+        // Continue execution, don't fail the user update
+      }
+    }
+    
+    return updatedUser;
   }
 
   // Delete a user
@@ -258,5 +308,62 @@ export class UserService {
       console.error('Error checking if user exists:', error);
       throw error;
     }
+  }
+
+  /**
+   * Add notification to user
+   */
+  async addNotification(username: string, notification: string): Promise<User> {
+    const user = await this.findOneByUsername(username);
+    
+    if (!user.notifications) {
+      user.notifications = [];
+    }
+    
+    // Add notification to the beginning of the array (newest first)
+    user.notifications.unshift(notification);
+    
+    // Limit notifications to last 50 to prevent unlimited growth
+    if (user.notifications.length > 50) {
+      user.notifications = user.notifications.slice(0, 50);
+    }
+    
+    await this.usersRepository.save(user);
+    return user;
+  }
+
+  /**
+   * Remove specific notification from user
+   */
+  async removeNotification(username: string, notificationIndex: number): Promise<User> {
+    const user = await this.findOneByUsername(username);
+    
+    if (!user.notifications || notificationIndex < 0 || notificationIndex >= user.notifications.length) {
+      throw new NotFoundException('Notification not found');
+    }
+    
+    user.notifications.splice(notificationIndex, 1);
+    
+    await this.usersRepository.save(user);
+    return user;
+  }
+
+  /**
+   * Clear all notifications for user
+   */
+  async clearAllNotifications(username: string): Promise<User> {
+    const user = await this.findOneByUsername(username);
+    user.notifications = [];
+    
+    await this.usersRepository.save(user);
+    return user;
+  }
+
+  /**
+   * Get user notifications
+   */
+  async getUserNotifications(username: string): Promise<string[]> {
+    const user = await this.findOneByUsername(username);
+    return user.notifications || [];
   }
 }
