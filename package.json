@@ -98,6 +98,6 @@
     "testEnvironment": "node"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=22.10.7 <23.0.0"
   }
 }
