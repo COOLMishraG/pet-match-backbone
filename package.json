@@ -6,8 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-"build": "nest build && [ -d src/migrations ] && cp -r src/migrations dist/migrations || true",
-
+"build": "npx nest build && [ -d src/migrations ] && cp -r src/migrations dist/migrations || true",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
