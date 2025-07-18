@@ -124,24 +124,7 @@ export class AuthService {
     }
   }
 
-  // Validate user credentials for regular login
-  async validateUser(email: string, password: string): Promise<{ user: User; token: string }> {
-    try {
-      console.log('🔐 AuthService: Validating user credentials for:', email);
-      
-      // Use UserService to validate credentials
-      const user = await this.userService.validateUser(email, password);
-      
-      // Generate token for authenticated user
-      const token = this.generateToken(user);
-      
-      console.log('✅ AuthService: User validation successful');
-      return { user, token };
-    } catch (error) {
-      console.error('❌ AuthService: User validation failed:', error.message);
-      throw error;
-    }
-  }
+
 
   // Validate user credentials by username for regular login
   async validateUserByUsername(username: string, password: string): Promise<{ user: User; token: string }> {

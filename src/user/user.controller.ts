@@ -17,6 +17,7 @@ import {
 import { Response } from 'express';
 import { UserService } from './user.service';
 import { User } from './user.entity';
+import { CreateNotificationDto } from './dto/notification.dto';
 import * as jwt from 'jsonwebtoken';
 
 @Controller('users')
@@ -155,7 +156,10 @@ export class UserController {
   findAllVets(): Promise<User[]> {
     return this.userService.findAllVets();
   }
-
+  @Get('sitters')
+  findAllSitters(): Promise<User[]> {
+    return this.userService.findAllSitters();
+  }
   //checked
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -193,5 +197,113 @@ export class UserController {
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('id') id: string) {
     return this.userService.remove(id);
+  }
+
+  // Notification management endpoints
+
+  /**
+   * Get all notifications for a user
+   */
+  @Get('notifications/:username')
+  async getUserNotifications(@Param('username') username: string) {
+    try {
+      const notifications = await this.userService.getUserNotifications(username);
+      return {
+        username,
+        notifications,
+        count: notifications.length
+      };
+    } catch (error) {
+      console.error('Error getting user notifications:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a notification to a user
+   */
+  @Post('notifications/:username')
+  @HttpCode(HttpStatus.CREATED)
+  async addNotification(
+    @Param('username') username: string,
+    @Body() notificationData: CreateNotificationDto,
+    @Res() response: Response
+  ) {
+    try {
+      if (!notificationData.message) {
+        return response.status(HttpStatus.BAD_REQUEST).json({
+          message: 'Notification message is required'
+        });
+      }
+
+      const updatedUser = await this.userService.addNotification(username, notificationData.message);
+      
+      return response.status(HttpStatus.CREATED).json({
+        message: 'Notification added successfully',
+        username: updatedUser.username,
+        notificationCount: updatedUser.notifications?.length || 0
+      });
+    } catch (error) {
+      console.error('Error adding notification:', error.message);
+      return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'Failed to add notification',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Remove a specific notification by index
+   */
+  @Delete('notifications/:username/:index')
+  @HttpCode(HttpStatus.OK)
+  async removeNotification(
+    @Param('username') username: string,
+    @Param('index') index: string,
+    @Res() response: Response
+  ) {
+    try {
+      const notificationIndex = parseInt(index, 10);
+      
+      if (isNaN(notificationIndex)) {
+        return response.status(HttpStatus.BAD_REQUEST).json({
+          message: 'Invalid notification index'
+        });
+      }
+
+      const updatedUser = await this.userService.removeNotification(username, notificationIndex);
+      
+      return response.status(HttpStatus.OK).json({
+        message: 'Notification removed successfully',
+        username: updatedUser.username,
+        notificationCount: updatedUser.notifications?.length || 0
+      });
+    } catch (error) {
+      console.error('Error removing notification:', error.message);
+      return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: 'Failed to remove notification',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * Clear all notifications for a user
+   */
+  @Delete('notifications/:username')
+  @HttpCode(HttpStatus.OK)
+  async clearAllNotifications(@Param('username') username: string) {
+    try {
+      const updatedUser = await this.userService.clearAllNotifications(username);
+      
+      return {
+        message: 'All notifications cleared successfully',
+        username: updatedUser.username,
+        notificationCount: 0
+      };
+    } catch (error) {
+      console.error('Error clearing notifications:', error.message);
+      throw error;
+    }
   }
 }
