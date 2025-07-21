@@ -8,6 +8,7 @@ import { MatchModule } from './match/match.module';
 import { VisionAiModule } from './vision-ai/vision-ai.module';
 import { VetSpecModule } from './vet-spec/vet-spec.module';
 import { SitterSpecModule } from './sitter-spec/sitter-spec.module';
+import { PingModule } from './ping/ping.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SitterSpecModule } from './sitter-spec/sitter-spec.module';
     VisionAiModule,
     VetSpecModule,
     SitterSpecModule,
+    PingModule,
   ],
 })
 export class AppModule {}
