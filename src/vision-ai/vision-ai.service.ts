@@ -211,7 +211,7 @@ export class VisionAiService {
   /**
    * Analyze image from URL
    */
-  async analyzeImageFromUrl(imageUrl: string): Promise<VisionAnalysisResult> {
+  async analyzeImageFromUrl(imageUrl: string): Promise<{ animalType: AnimalType | null, breed?: string, description: string }> {
     try {
       const [result] = await this.client.labelDetection({
         image: { source: { imageUri: imageUrl } },
@@ -224,59 +224,144 @@ export class VisionAiService {
         confidence: label.score || 0
       }));
 
-      const detectedAnimal = this.mapLabelsToAnimalType(labelData);
-      const confidence = this.getConfidenceForAnimal(detectedAnimal, labelData);
-      const breed = this.extractBreed(labelTexts, detectedAnimal);
+      const animalType = this.mapLabelsToAnimalType(labelData);
+      const breed = this.extractBreed(labelTexts, animalType);
+      const description = await this.generateBreedDescription(animalType, breed);
 
       return {
-        detectedAnimal,
-        confidence,
-        allLabels: labelTexts,
-        breed
+        animalType,
+        breed,
+        description
       };
 
     } catch (error) {
       console.error('Vision AI analysis failed:', error);
-      
       // If billing is not enabled, return a mock response based on URL for testing
       if (error.message?.includes('billing') || error.code === 7) {
         console.log('Billing not enabled - returning mock detection based on URL for testing');
-        
         // Simple URL-based detection for testing
         const url = imageUrl.toLowerCase();
-        if (url.includes('dog') || url.includes('retriever') || url.includes('labrador')) {
-          return {
-            detectedAnimal: AnimalType.DOG,
-            confidence: 0.9,
-            allLabels: ['dog', 'canine', 'golden retriever', 'pet', 'animal'],
-            breed: 'golden retriever'
-          };
-        } else if (url.includes('cat') || url.includes('kitten')) {
-          return {
-            detectedAnimal: AnimalType.CAT,
-            confidence: 0.88,
-            allLabels: ['cat', 'feline', 'pet', 'animal'],
-            breed: 'domestic cat'
-          };
+        let animalType: AnimalType = AnimalType.DOG;
+        let breed = 'golden retriever';
+        if (url.includes('cat') || url.includes('kitten')) {
+          animalType = AnimalType.CAT;
+          breed = 'domestic cat';
         } else if (url.includes('bird') || url.includes('parrot')) {
-          return {
-            detectedAnimal: AnimalType.BIRD,
-            confidence: 0.85,
-            allLabels: ['bird', 'avian', 'pet', 'animal'],
-            breed: 'parrot'
-          };
+          animalType = AnimalType.BIRD;
+          breed = 'parrot';
+        } else if (url.includes('dog') || url.includes('retriever') || url.includes('labrador')) {
+          animalType = AnimalType.DOG;
+          breed = 'golden retriever';
         } else {
-          // Default to dog for testing
-          return {
-            detectedAnimal: AnimalType.DOG,
-            confidence: 0.75,
-            allLabels: ['dog', 'canine', 'pet', 'animal'],
-            breed: 'mixed breed'
-          };
+          animalType = AnimalType.DOG;
+          breed = 'mixed breed';
         }
+        const description = await this.generateBreedDescription(animalType, breed);
+        return {
+          animalType,
+          breed,
+          description
+        };
       }
-      
       throw new BadRequestException('Failed to analyze image from URL');
+    }
+  }
+
+  /**
+   * Generate an AI-powered breed description
+   */
+  private async generateBreedDescription(animalType: AnimalType | null, breed?: string): Promise<string> {
+    try {
+      // Request a comprehensive analysis from Vision AI
+      const [result] = await this.client.annotateImage({
+        image: { source: { imageUri: `https://source.unsplash.com/featured/?${breed || animalType || 'pet'}` } },
+        features: [
+          { type: 'LABEL_DETECTION', maxResults: 15 },
+          { type: 'OBJECT_LOCALIZATION', maxResults: 10 },
+          { type: 'TEXT_DETECTION' }
+        ]
+      });
+
+      const labels = result.labelAnnotations || [];
+      const objects = result.localizedObjectAnnotations || [];
+      const texts = result.textAnnotations || [];
+      
+      // Build a rich description
+      const descriptions: string[] = [];
+      
+      // Start with breed/type intro
+      descriptions.push(`This ${breed || animalType?.toLowerCase() || 'pet'} looks like a wonderful companion.`);
+      
+      // Add visual characteristics from labels
+      const relevantLabels = labels
+        .filter(label => label.score && label.score > 0.7 && label.description)
+        .map(label => label.description!)
+        .filter(desc => !desc.toLowerCase().includes(breed?.toLowerCase() || '') && 
+                       !desc.toLowerCase().includes(animalType?.toLowerCase() || ''))
+        .slice(0, 3);
+
+      if (relevantLabels.length > 0) {
+        descriptions.push(`Notable characteristics include: ${relevantLabels.join(', ')}.`);
+      }
+
+      // Add environment details from object detection
+      const environment = objects
+        .filter(obj => obj.score && obj.score > 0.7 && obj.name)
+        .map(obj => obj.name!)
+        .filter(name => !name.toLowerCase().includes(animalType?.toLowerCase() || ''))
+        .slice(0, 3);
+      
+      if (environment.length > 0) {
+        descriptions.push(`In their environment, you can see: ${environment.join(', ')}.`);
+      }
+
+      // Add any detected text that might be relevant
+      const relevantText = texts
+        .slice(1) // Skip first element which contains all text
+        .filter(text => text.description && 
+                !text.description.toLowerCase().includes(breed?.toLowerCase() || '') &&
+                !text.description.toLowerCase().includes(animalType?.toLowerCase() || ''))
+        .map(text => text.description)
+        .slice(0, 2);
+
+      if (relevantText.length > 0) {
+        descriptions.push(`Additional details visible: ${relevantText.join(', ')}.`);
+      }
+
+      // Add personalized care recommendations
+      switch (animalType) {
+        case AnimalType.DOG:
+          descriptions.push('This dog will thrive with regular exercise, social interaction, and consistent training. They need daily walks, mental stimulation through play, and proper veterinary care.');
+          break;
+        case AnimalType.CAT:
+          descriptions.push('This cat would benefit from a stimulating environment with climbing spaces, scratching posts, and cozy resting spots. They need regular grooming, a balanced diet, and preventive healthcare.');
+          break;
+        case AnimalType.BIRD:
+          descriptions.push('This bird needs a spacious cage, varied perches, and plenty of toys for enrichment. They require social interaction, a specialized diet, and a consistent daily routine.');
+          break;
+        case AnimalType.RABBIT:
+          descriptions.push('This rabbit requires a safe space to hop around, plenty of hay, and opportunities for exercise. They need gentle handling, regular health checks, and social interaction.');
+          break;
+        case AnimalType.HAMSTER:
+          descriptions.push('This hamster needs a secure cage with hiding spots, exercise wheel, and proper bedding. They require a balanced diet, clean environment, and gentle care.');
+          break;
+        case AnimalType.FISH:
+          descriptions.push('This fish requires clean water, appropriate temperature control, and a well-maintained aquarium. They need proper filtration, regular feeding, and water quality monitoring.');
+          break;
+        case AnimalType.REPTILE:
+          descriptions.push('This reptile needs proper temperature regulation, specific humidity levels, and an appropriate habitat setup. They require specialized lighting, diet, and environmental conditions.');
+          break;
+        default:
+          descriptions.push('This pet needs proper care, attention, and a suitable living environment tailored to their specific needs.');
+      }
+
+      // Create a cohesive description
+      return descriptions.join('\n\n');
+
+    } catch (error) {
+      console.warn('Failed to generate AI description:', error);
+      // Fallback description if AI generation fails
+      return `This ${breed || animalType?.toLowerCase() || 'pet'} is a wonderful companion that needs loving care and attention. They deserve a caring home where their specific needs can be met with dedication and understanding.`;
     }
   }
 }

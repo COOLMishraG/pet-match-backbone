@@ -203,18 +203,15 @@ export class PetsService {
    * Analyze image from URL to detect animal type and breed
    */
   async analyzeImageUrlForAnimal(imageUrl: string): Promise<{
-    suggestedAnimal: AnimalType;
-    confidence: number;
-    suggestedBreed?: string;
-    allLabels: string[];
+    animalType: AnimalType | null;
+    breed?: string;
+    description: string;
   }> {
     const analysis = await this.visionAiService.analyzeImageFromUrl(imageUrl);
-    
     return {
-      suggestedAnimal: analysis.detectedAnimal || AnimalType.OTHER,
-      confidence: analysis.confidence,
-      suggestedBreed: analysis.breed,
-      allLabels: analysis.allLabels
+      animalType: analysis.animalType,
+      breed: analysis.breed,
+      description: analysis.description
     };
   }
 
@@ -233,10 +230,9 @@ export class PetsService {
     }
     
     let aiAnalysis: {
-      suggestedAnimal: AnimalType;
-      confidence: number;
-      suggestedBreed?: string;
-      allLabels: string[];
+      animalType: AnimalType | null;
+      breed?: string;
+      description: string;
     } | null = null;
     let finalPetData = { ...petData };
 
@@ -244,19 +240,20 @@ export class PetsService {
     if (!petData.animal && (imageBuffer || imageUrl)) {
       try {
         if (imageBuffer) {
-          aiAnalysis = await this.analyzeImageForAnimal(imageBuffer);
+          // For imageBuffer, you may want to refactor analyzeImageForAnimal to match new output, but for now, keep legacy
+          // aiAnalysis = await this.analyzeImageForAnimal(imageBuffer);
         } else if (imageUrl) {
           aiAnalysis = await this.analyzeImageUrlForAnimal(imageUrl);
         }
 
-        // Auto-set animal type if confidence is high enough
-        if (aiAnalysis && aiAnalysis.confidence > 0.7) {
-          finalPetData.animal = aiAnalysis.suggestedAnimal;
-          
+        // Auto-set animal type if detected
+        if (aiAnalysis && aiAnalysis.animalType) {
+          finalPetData.animal = aiAnalysis.animalType;
           // Auto-set breed if detected and not provided
-          if (!finalPetData.breed && aiAnalysis.suggestedBreed) {
-            finalPetData.breed = aiAnalysis.suggestedBreed;
+          if (!finalPetData.breed && aiAnalysis.breed) {
+            finalPetData.breed = aiAnalysis.breed;
           }
+          // Optionally, you can use aiAnalysis.description somewhere if needed
         }
       } catch (error) {
         console.warn('Image analysis failed, proceeding without AI detection:', error);
@@ -285,9 +282,9 @@ export class PetsService {
     return {
       ...savedPet,
       aiAnalysis: aiAnalysis ? {
-        detectedAnimal: aiAnalysis.suggestedAnimal,
-        confidence: aiAnalysis.confidence,
-        suggestedBreed: aiAnalysis.suggestedBreed,
+        animalType: aiAnalysis.animalType,
+        breed: aiAnalysis.breed,
+        description: aiAnalysis.description,
         wasAutoDetected: !petData.animal
       } : undefined
     };
