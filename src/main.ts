@@ -5,11 +5,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Enable CORS for all routes
+  // Enable CORS for specific origins
   app.enableCors({
-    origin: true, // Allow all origins, can be set to specific domain(s) in production
+    origin: [
+      'http://localhost:3000',     // Local development
+      'http://localhost:5173',     // Vite dev server
+      process.env.FRONTEND_URL, // Vercel frontend URL
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true, // Allow cookies to be sent with requests
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Authorization'],
   });
     await app.listen(process.env.PORT ?? 3000);
 }
