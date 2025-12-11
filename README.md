@@ -1,98 +1,131 @@
+# 🦴 PetMatch Backbone (Main Service)
+
+[![NestJS](https://img.shields.io/badge/nestjs-%23E0234E.svg?style=for-the-badge&logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/postgresql-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Render](https://img.shields.io/badge/Render-%2346E3B7.svg?style=for-the-badge&logo=render&logoColor=white)](https://render.com/)
+
+> **The monolith core of the PetMatch ecosystem.**
+> Built with NestJS, this service handles the primary business logic, authentication, and AI integrations, deployed on Render with custom optimization strategies.
+
+---
+
+## 📖 About The Project
+
+**PetMatch** is a platform connecting pet owners, sitters, and vets. This repository hosts the **Main Backend Service** (Monolith), which operates alongside a separate Community Microservice.
+
+This project was a deep dive into system design and cloud infrastructure, moving beyond basic CRUD to implement scalable patterns, containerization, and cost-effective cloud deployment strategies.
+
+### 🏗️ Architecture & Features
+
+* **Authentication:** Secure JWT Auth + Google Sign-In (OAuth).
+* **Pet Matching Logic:** core algorithms to connect pets with owners/sitters.
+* **Vision AI Integration:** Automated pet image recognition and tagging.
+* **Data Persistence:** PostgreSQL on Neon (optimized with separate DB instances for load handling).
+* **Image Management:** Cloudinary integration for scalable media storage.
+* **Keep-Alive Mechanism:** A custom "ping" strategy using EC2 to prevent Render free-tier spin-downs.
+
+---
+
+## 🛠️ Tech Stack
+
+* **Framework:** NestJS
+* **Database:** PostgreSQL (Neon)
+* **ORM:** TypeORM / Prisma (Update based on code)
+* **Containerization:** Docker (Multi-stage builds for minimal image size)
+* **CI/CD:** GitHub Actions
+* **Deployment:** Render (Main App)
+
+---
+
+## 🚀 Deployment & Infrastructure
+
+This project uses a hybrid deployment strategy to balance performance and cost:
+
+1.  **Main App (This Repo):** Deployed on **Render**.
+2.  **Community Microservice:** Deployed on **AWS ECS (EC2 launch type)**.
+    * *Link to Community Repo:* [Insert Link Here]
+3.  **Optimization:**
+    * **Docker:** Multi-stage Dockerfiles reduce final image size significantly.
+    * **Auto-scaling:** Configured to scale when CPU hits 75%.
+    * **Cost Efficiency:** No load balancer (direct port binding/reverse proxy setup) to stay within budget.
+
+---
+
+## 🏁 Getting Started
+
+Follow these steps to run the main service locally.
+
+### Prerequisites
+
+* Node.js (v18+)
+* Docker & Docker Compose
+* PostgreSQL Database URL
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone [https://github.com/COOLMishraG/pet-match-backbone.git](https://github.com/COOLMishraG/pet-match-backbone.git)
+    cd pet-match-backbone
+    ```
+
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
+
+3.  **Environment Configuration**
+    Create a `.env` file in the root directory:
+    ```env
+    PORT=3000
+    DATABASE_URL=postgresql://user:password@host/db
+    JWT_SECRET=your_secret
+    GOOGLE_CLIENT_ID=your_google_id
+    GOOGLE_CLIENT_SECRET=your_google_secret
+    CLOUDINARY_URL=cloudinary://key:secret@cloud_name
+    VISION_API_KEY=your_vision_key
+    ```
+
+4.  **Run with Docker (Recommended)**
+    ```bash
+    docker-compose up --build
+    ```
+
+5.  **Run Manually**
+    ```bash
+    npm run start:dev
+    ```
+
+---
+
+## 🧠 Engineering Challenges Solved
+
+Building this wasn't just about writing code; it was about solving infrastructure pain points:
+
+* **Docker Optimization:** Wrestled with image bloat by implementing multi-stage builds.
+* **Render Sleep Issue:** Solved the "cold start" problem on Render by engineering a cron-job style pinger from the AWS EC2 instance.
+* **Vision AI:** Integrated image recognition to prevent spam/irrelevant uploads (after much trial and error with "trash" results!).
+
+---
+
+## 🤝 Related Repositories
+
+* [**Frontend (React)**](https://github.com/COOLMishraG/pet-match-frontend)
+* [**Community Microservice (AWS ECS)**](https://github.com/COOLMishraG/pet-match-community) *(Update link if available)*
+
+---
+
+## 📬 Contact
+
+**Anuj Mishra**
+
+* **LinkedIn:** [anuj-omishra-](https://www.linkedin.com/in/anuj-omishra-)
+* **GitHub:** [COOLMishraG](https://github.com/COOLMishraG)
+* **Live App:** [pet-match-iota.vercel.app](https://pet-match-iota.vercel.app)
+
+---
+
 <p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+  Made with ❤️, NestJS, and 2AM debugging sessions.
 </p>
-
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
-
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
-```
-
-## Compile and run the project
-
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
